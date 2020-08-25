@@ -81,7 +81,6 @@ const lmic_pinmap lmic_pins = {
                                     // DIO1 is on JP5-3: is D2 - we connect to GPO5
 };
 
-
 /*********************************************************************************
  * Setup the GPS module
  */
