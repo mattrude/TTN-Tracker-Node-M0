@@ -213,8 +213,9 @@ int main(void)
      * Setup the LoRa module
      */
     
-        // LMIC init
+    // LMIC init
     os_init();
+
     // Reset the MAC state. Session and pending data transfers will be discarded.
     LMIC_reset();
 
