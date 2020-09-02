@@ -195,13 +195,21 @@ void onEvent (ev_t ev) {
     }
 }
 
-// Initialize the main function
-int main(void)
-{
+/*********************************************************************************
+ * Initialize the main function
+ */
+int main(void) {
+    
+    /*****************************************************************************
+     * Setup the serial interface (only used for debuging)
+     */
+
+    
     // Enanble the serial monitor at 115200 baud
     Serial.begin(115200);
 
-    // Uncomment to have the sketch wait until Serial is ready (disable for production)
+    // Uncomment to have the sketch wait until Serial is ready
+    // (disable for production)
     //while (!Serial);
 
     // Display the program header at boot
@@ -308,7 +316,7 @@ int main(void)
      * Setup the GPS module
      */
 
-    // 9600 NMEA is the default baud rate for Adafruit MTK GPS's- some use 4800
+    // 9600 is the default baud rate for Adafruit GPS, but others may use 4800
     GPS.begin(9600);
 
     // Enable RMC (recommended minimum) and GGA (fix data) including altitude
@@ -331,8 +339,7 @@ int main(void)
      * Start the main loop
      */
 
-    while (1)
-    {
+    while (1) {
         // read data from the GPS in the 'main loop'
         char c = GPS.read();
 
@@ -350,11 +357,13 @@ int main(void)
             Serial.print(GPS.minute, DEC); Serial.print(':');
             if (GPS.seconds < 10) { Serial.print('0'); }
             Serial.print(GPS.seconds, DEC); Serial.print('.');
+        
             if (GPS.milliseconds < 10) {
                 Serial.print("00");
             } else if (GPS.milliseconds > 9 && GPS.milliseconds < 100) {
                 Serial.print("0");
             }
+        
             Serial.println(GPS.milliseconds);
             Serial.print("Date: ");
             Serial.print(GPS.day, DEC); Serial.print('/');
