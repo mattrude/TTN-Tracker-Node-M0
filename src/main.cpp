@@ -67,7 +67,6 @@ void os_getArtEui (u1_t* buf) { }
 void os_getDevEui (u1_t* buf) { }
 void os_getDevKey (u1_t* buf) { }
 
-static uint8_t mydata[] = "Hello, world!";
 static osjob_t sendjob;
 
 // Pin mapping
@@ -104,6 +103,7 @@ uint32_t timer = millis();
  */
 
 unsigned char loraData[10];
+unsigned char txData[8];
 
 
 /*********************************************************************************/
@@ -111,16 +111,21 @@ unsigned char loraData[10];
 void do_send(osjob_t* j) {
     // Check if there is not a current TX/RX job running
     if (LMIC.opmode & OP_TXRXPEND) {
+        #ifdef DEBUG
         Serial.println(F("OP_TXRXPEND, not sending"));
+        #endif
     } else {
         // Prepare upstream data transmission at the next possible time.
-        LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
+        LMIC_setTxData2(1, txData, sizeof(txData)-1, 0);
+        #ifdef DEBUG
         Serial.println(F("Packet queued"));
+        #endif
     }
     // Next TX is scheduled after TX_COMPLETE event.
 }
 
 void onEvent (ev_t ev) {
+    #ifdef DEBUG
     Serial.print(os_getTime());
     Serial.print(": ");
     switch(ev) {
@@ -193,6 +198,7 @@ void onEvent (ev_t ev) {
             Serial.println((unsigned) ev);
             break;
     }
+    #endif
 }
 
 /*********************************************************************************
@@ -206,14 +212,18 @@ int main(void) {
 
     
     // Enanble the serial monitor at 115200 baud
+    #ifdef DEBUG
     Serial.begin(115200);
+    #endif
 
     // Uncomment to have the sketch wait until Serial is ready
     // (disable for production)
-    //while (!Serial);
+    #ifdef DEBUG
+    while (!Serial);
 
     // Display the program header at boot
     Serial.println("Booting TTN-Tracker-Node-M0");
+    #endif
 
 
     /*****************************************************************************
@@ -242,7 +252,14 @@ int main(void) {
     LMIC_setSession (0x13, DEVADDR, NWKSKEY, APPSKEY);
     #endif
 
-    #if defined(CFG_eu868)
+    #if defined(CFG_us915) || defined(CFG_au915)
+    // NA-US and AU channels 0-71 are configured automatically
+    // but only one group of 8 should (a subband) should be active
+    // TTN recommends the second sub band, 1 in a zero based count.
+    // https://github.com/TheThingsNetwork/gateway-conf/blob/master/US-global_conf.json
+    LMIC_selectSubBand(1);
+
+    #elif defined(CFG_eu868)
     // Set up the channels used by the Things Network, which corresponds
     // to the defaults of most gateways. Without this, only three base
     // channels from the LoRaWAN specification are used, which certainly
@@ -266,14 +283,7 @@ int main(void) {
     // devices' ping slots. LMIC does not have an easy way to define set this
     // frequency and support for class B is spotty and untested, so this
     // frequency is not configured here.
-    
-    #elif defined(CFG_us915) || defined(CFG_au915)
-    // NA-US and AU channels 0-71 are configured automatically
-    // but only one group of 8 should (a subband) should be active
-    // TTN recommends the second sub band, 1 in a zero based count.
-    // https://github.com/TheThingsNetwork/gateway-conf/blob/master/US-global_conf.json
-    LMIC_selectSubBand(1);
-    
+        
     #elif defined(CFG_as923)
     // Set up the channels used in your country. Only two are defined by default,
     // and they cannot be changed.  Use BAND_CENTI to indicate 1% duty cycle.
@@ -297,7 +307,7 @@ int main(void) {
     LMIC_setupChannel(2, 865985000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_MILLI);
 
     #else
-    # error Region not supported
+    # warning No Region selected, please add "build_flags = -D CFG_us915=1" to your platformio.ini
     #endif
 
     // Disable link check validation
@@ -309,8 +319,6 @@ int main(void) {
     // Set data rate and transmit power for uplink
     LMIC_setDrTxpow(DR_SF7,14);
 
-    // Start job
-    do_send(&sendjob);
 
     /*****************************************************************************
      * Setup the GPS module
@@ -340,16 +348,23 @@ int main(void) {
      */
 
     while (1) {
+        #ifdef DEBUG
         // read data from the GPS in the 'main loop'
         char c = GPS.read();
 
         // if you want to debug, this is a good time to do it!
         if (GPSECHO)
             if (c) Serial.print(c);
+        #endif
 
         // approximately every 2 seconds or so, print out the current stats
         if (millis() - timer > 2000) {
-            timer = millis(); // reset the timer
+
+            // Reset the timer
+            timer = millis();
+
+            // Start printing the GPS data to the serial prompt
+            #ifdef DEBUG
             Serial.print("\nTime: ");
             if (GPS.hour < 10) { Serial.print('0'); }
             Serial.print(GPS.hour, DEC); Serial.print(':');
@@ -371,7 +386,11 @@ int main(void) {
             Serial.println(GPS.year, DEC);
             Serial.print("Fix: "); Serial.print((int)GPS.fix);
             Serial.print(" quality: "); Serial.println((int)GPS.fixquality);
+            #endif
+
+            // Check if the GPS is connected, and only send data if it is.
             if (GPS.fix) {
+                #ifdef DEBUG
                 Serial.print("Location: ");
                 Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
                 Serial.print(", ");
@@ -380,6 +399,19 @@ int main(void) {
                 Serial.print("Angle: "); Serial.println(GPS.angle);
                 Serial.print("Altitude: "); Serial.println(GPS.altitude);
                 Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
+                #endif
+                
+                // Build the item to send via LoRaWAN
+                txData[0] = GPS.lat;
+                txData[1] = GPS.lon;
+                txData[2] = GPS.altitude;
+                txData[3] = GPS.satellites;
+                txData[4] = GPS.fixquality;
+                txData[6] = GPS.fix;
+                txData[7] = GPS.speed;
+
+                // And send the data via LoRaWAN
+                do_send(&sendjob);
             }
         }
     }
