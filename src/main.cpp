@@ -1,5 +1,4 @@
-/*
- * TTN-Tracker-Node-M0 - Version 0.1.0 - 2020-08-24
+/* TTN-Tracker-Node-M0 - Version 0.1.0 - 2020-08-24
  * *******************************************************************************
  * 
  * This program is built to provide GPS tracking via LoRaWAN.
@@ -30,8 +29,6 @@
  */
 
 #include <Arduino.h>
-#include <SD.h>
-#include <dma.h>
 #include <Adafruit_GPS.h>
 #include <lmic.h>
 #include <hal/hal.h>
@@ -212,18 +209,18 @@ int main(void) {
 
     
     // Enanble the serial monitor at 115200 baud
-    #ifdef DEBUG
+    //#ifdef DEBUG
     Serial.begin(115200);
-    #endif
+    //#endif
 
     // Uncomment to have the sketch wait until Serial is ready
     // (disable for production)
-    #ifdef DEBUG
+    //#ifdef DEBUG
     while (!Serial);
 
     // Display the program header at boot
     Serial.println("Booting TTN-Tracker-Node-M0");
-    #endif
+    //#endif
 
 
     /*****************************************************************************
